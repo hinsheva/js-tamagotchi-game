@@ -1,28 +1,89 @@
+import { modFox, modScene, togglePoppBag, writeModal } from "./ui";
+import { RAIN_CHANCE, SCENECS, DAY_LENGTH, NIGHT_LENGHT, getNextDieTime, getNextHungerTime, getNextPoopTime } from './constants';
 const gameState = {
   current: "INIT",
   clock: 1,
   wakeTime: -1,
+  sleepTime: -1,
+  hungryTime: -1,
+  dieTime: -1,
+  poopTime: -1,
+  timeToStartCelebrating: -1,
+  timeToEndCelebrating: -1,
+
   tick() {
-    // console.log("this", this)
     this.clock++;
     if(this.clock === this.wakeTime){
       this.wake();
+    } else if(this.clock === this.sleepTime){
+      this.sleep();
+    } else if(this.clock === this.hungryTime){
+      this.getHungry();
+    } else if(this.clock === this.dieTime){
+      this.die();
+    } else if(this.clock === this.timeToStartCelebrating) {
+      this.starCelebrating();
+    } else if(this.clock === this.timeToEndCelebrating) {
+      this.endCelebrating();
+    } else if(this.clock === this.poopTime) {
+      this.poop();
     }
-    console.log("clock" , this.clock)
     return this.clock;
   },
+
   startGame(){
-    console.log("hatching")
+    writeModal();
     this.current = "HATCHING";
     this.wakeTime = this.clock + 3;
+    modFox('egg');
+    modScene('day');
   },
+
   wake(){
-    console.log('awoken');
     this.current = "IDLING";
     this.wakeTime = -1;
+    this.scene = Math.random > RAIN_CHANCE ? 0 : 1;
+    modScene(SCENECS[this.scene]);
+    this.sleepTime = this.clock + DAY_LENGTH;
+    this.hungryTime = getNextHungerTime(this.clock);
+    this.determineFoxState();
   },
+
+  clearTimes(){
+    this.clock = 1;
+    this.wakeTime = -1;
+    this.sleepTime = -1;
+    this.hungryTime = -1;
+    this.dieTime = -1;
+    this.poopTime = -1;
+    this.timeToStartCelebrating = -1;
+    this.timeToEndCelebrating = -1;
+  },
+
+  sleep(){
+    this.current = "SLEEP";
+    modFox('sleep');
+    modScene('night');
+    this.clearTimes();
+    this.wakeTime = this.clock + NIGHT_LENGHT;
+  },
+
+  getHungry(){
+    this.current = "HUNGRY";
+    this.dieTime = getNextDieTime(this.clock);
+    this.hungryTime = -1;
+    modFox('hungry');
+  },
+
+  die(){
+    this.current = "DEAD";
+    modFox('dead');
+    modScene('dead');
+    this.clearTimes();
+    writeModal('The fox died :( <br/> Presss the middle button to restart the game...')
+  },
+  
   handleUserAction(icon) {
-    console.log("this", this)
     if(["SLEEP", "FEEDING", "CELEBRATING", "HATCHING"].includes(this.current)){
       //disable respond on user interractions
       return;
@@ -43,15 +104,65 @@ const gameState = {
         break;
     }
   },
+
   changeWeather(){
-    console.log("changeWeather")
+    this.scene = (this.scene + 1) % SCENECS.length;
+    modScene(SCENECS[this.scene]);
+    this.determineFoxState();
   },
+
   cleanUpPoop(){
-    console.log("cleanUpPoop")
+    if(this.current !== "POOPING") {
+      return;
+    } 
+    this.dieTime = -1;
+    togglePoppBag(true);
+    this.starCelebrating();
+    getNextHungerTime(this.clock);
   },
+
   feed(){
-    console.log("feed")
+    if(this.current !== "HUNGRY"){
+      return;
+    }
+    this.current === "FEEDING";
+    this.dieTime = -1;
+    this.poopTime = getNextPoopTime(this.clock);
+    modFox('eating');
+    this.timeToStartCelebrating = this.clock + 2;
   },
+
+  starCelebrating(){
+    this.current === "CELEBRATING";
+    modFox('celebrate');
+    this.timeToStartCelebrating = -1;
+    this.timeToEndCelebrating = this.clock + 2;
+  },
+
+  endCelebrating(){
+    this.timeToEndCelebrating = -1;
+    this.current = "IDLING";
+    this.determineFoxState();
+    togglePoppBag(false);
+  },
+
+  poop(){
+    this.current = "POOPING";
+    this.poopTime = -1;
+    this.dieTime = getNextDieTime(this.clock);
+    modFox('pooping');
+  },
+  
+   determineFoxState(){
+     // determine either the fox is front-turned or back-turned
+     if(this.current === "IDLING"){
+       if(SCENECS[this.scene] === 'rain'){
+         modFox('rain');
+       } else {
+         modFox('idling')
+       }
+     }
+   }
 };
 
 export const handleUserAction = gameState.handleUserAction.bind(gameState);
