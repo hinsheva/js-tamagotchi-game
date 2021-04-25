@@ -88,9 +88,12 @@ body {
 .modal-inner {
   background-color: blueviolet;
   color: white;
-  padding: 20px;
+  padding: 10px;
   font-size: 20px;
   border-radius: 5px;
+  margin-top:40px;
+  display: flex;
+  justify-content: center;
 }
 
 .modal {
