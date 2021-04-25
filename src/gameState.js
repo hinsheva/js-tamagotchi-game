@@ -1,5 +1,5 @@
 import { modFox, modScene, togglePoppBag, writeModal } from "./ui";
-import { RAIN_CHANCE, SCENECS, DAY_LENGTH, NIGHT_LENGHT, getNextDieTime, getNextHungerTime, getNextPoopTime } from './constants';
+import { RAIN_CHANCE, SCENES, DAY_LENGTH, NIGHT_LENGHT, getNextDieTime, getNextHungerTime, getNextPoopTime, getNextWeatherChangeTime } from './constants';
 const gameState = {
   current: "INIT",
   clock: 1,
@@ -10,6 +10,7 @@ const gameState = {
   poopTime: -1,
   timeToStartCelebrating: -1,
   timeToEndCelebrating: -1,
+  timeToChangeWeather: -1,
 
   tick() {
     this.clock++;
@@ -19,6 +20,8 @@ const gameState = {
       this.sleep();
     } else if(this.clock === this.hungryTime){
       this.getHungry();
+    } else if(this.clock === this.timeToChangeWeather){
+      this.changeWeather();
     } else if(this.clock === this.dieTime){
       this.die();
     } else if(this.clock === this.timeToStartCelebrating) {
@@ -42,11 +45,13 @@ const gameState = {
   wake(){
     this.current = "IDLING";
     this.wakeTime = -1;
-    this.scene = Math.random > RAIN_CHANCE ? 0 : 1;
-    modScene(SCENECS[this.scene]);
+    modFox("idling");
+    this.scene = Math.random() > RAIN_CHANCE ? 0 : 1;
+    modScene(SCENES[this.scene]);
+    this.determineFoxState();
     this.sleepTime = this.clock + DAY_LENGTH;
     this.hungryTime = getNextHungerTime(this.clock);
-    this.determineFoxState();
+    this.timeToChangeWeather = getNextWeatherChangeTime(this.clock);
   },
 
   clearTimes(){
@@ -106,8 +111,8 @@ const gameState = {
   },
 
   changeWeather(){
-    this.scene = (this.scene + 1) % SCENECS.length;
-    modScene(SCENECS[this.scene]);
+    this.scene = (this.scene + 1) % SCENES.length;
+    modScene(SCENES[this.scene]);
     this.determineFoxState();
   },
 
@@ -130,6 +135,7 @@ const gameState = {
     this.poopTime = getNextPoopTime(this.clock);
     modFox('eating');
     this.timeToStartCelebrating = this.clock + 2;
+    this.determineFoxState();
   },
 
   starCelebrating(){
@@ -151,18 +157,19 @@ const gameState = {
     this.poopTime = -1;
     this.dieTime = getNextDieTime(this.clock);
     modFox('pooping');
+    this.determineFoxState();
   },
-  
+
    determineFoxState(){
      // determine either the fox is front-turned or back-turned
      if(this.current === "IDLING"){
-       if(SCENECS[this.scene] === 'rain'){
+       if(SCENES[this.scene] === 'rain'){
          modFox('rain');
        } else {
          modFox('idling')
        }
      }
-   }
+   },
 };
 
 export const handleUserAction = gameState.handleUserAction.bind(gameState);
